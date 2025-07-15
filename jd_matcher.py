@@ -1,7 +1,10 @@
 # jd_matcher.py (BERT version)
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer('./models/all-MiniLM-L6-v2')  # ✅ Use local model
+
+model = SentenceTransformer('all-MiniLM-L6-v2')  # ✅ Loads from Hugging Face
+
+ # ✅ Use local model
 
 
 
