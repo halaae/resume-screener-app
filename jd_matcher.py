@@ -1,16 +1,13 @@
-from sentence_transformers import SentenceTransformer
-model = SentenceTransformer("all-MiniLM-L6-v2")  # ✅ Model hosted on Hugging Face
+# jd_matcher.py
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 def get_match_score(resume_text, jd_text):
-    if not resume_text or not jd_text:
-        return 0
-
-    resume_emb = model.encode([resume_text])[0]
-    jd_emb = model.encode([jd_text])[0]
-
-    score = cosine_similarity([resume_emb], [jd_emb])[0][0] * 100
+    docs = [resume_text, jd_text]
+    vectorizer = TfidfVectorizer(stop_words='english', max_df=0.8)
+    tfidf = vectorizer.fit_transform(docs)
+    score = cosine_similarity(tfidf[0], tfidf[1])[0][0] * 100
     return round(score, 2)
 
-from sklearn.metrics.pairwise import cosine_similarity
 
 
