@@ -1,7 +1,18 @@
-streamlit
-pdfminer.six
-scikit-learn
+
 sentence-transformers
 spacy
 numpy
 pandas
+streamlit
+pdfminer.six
+scikit-learn
+pytesseract
+streamlit
+scikit-learn
+pdfminer.six
+pytesseract
+streamlit
+scikit-learn
+pdfminer.six
+pytesseract
+PyMuPDF  # ✅ instead of pdf2image

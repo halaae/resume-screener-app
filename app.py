@@ -1,10 +1,9 @@
 import streamlit as st
 from jd_matcher import get_match_score, extract_missing_skills
 from pdfminer.high_level import extract_text
-from pdf2image import convert_from_path
 import pytesseract
+import fitz  # PyMuPDF
 import tempfile
-import os
 
 st.set_page_config(page_title="AI Resume Screener", layout="centered")
 
@@ -14,28 +13,28 @@ st.write("Upload your resume and paste a job description to see your match score
 uploaded_resume = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 jd_input = st.text_area("Paste Job Description Here")
 
-# ---- Resume Text Extractor (OCR + Normal) ----
 def extract_resume_text(uploaded_resume):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_resume.read())
         tmp_path = tmp_file.name
 
-    # Try regular text extraction
+    # Try extracting regular PDF text first
     text = extract_text(tmp_path)
     if text and len(text.strip()) > 100:
         return text
 
-    # If not enough text, try OCR
+    # Try OCR using PyMuPDF + pytesseract
     try:
-        images = convert_from_path(tmp_path)
+        doc = fitz.open(tmp_path)
         ocr_text = ""
-        for img in images:
+        for page in doc:
+            pix = page.get_pixmap(dpi=300)
+            img = pix.tobytes("ppm")  # Image bytes
             ocr_text += pytesseract.image_to_string(img)
         return ocr_text
     except Exception as e:
         return f"OCR_ERROR::{e}"
 
-# ---- Process ----
 if st.button("🔍 Analyze"):
     if uploaded_resume and jd_input.strip():
         resume_text = extract_resume_text(uploaded_resume)
@@ -61,4 +60,5 @@ if st.button("🔍 Analyze"):
             st.write("✅ Great! No major keywords missing.")
     else:
         st.warning("Please upload a resume and paste a job description.")
+
 
