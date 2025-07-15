@@ -1,24 +1,16 @@
-# jd_matcher.py (BERT version)
 from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("all-MiniLM-L6-v2")  # ✅ Model hosted on Hugging Face
 
+def get_match_score(resume_text, jd_text):
+    if not resume_text or not jd_text:
+        return 0
 
-model = SentenceTransformer('all-MiniLM-L6-v2')  # ✅ Loads from Hugging Face
+    resume_emb = model.encode([resume_text])[0]
+    jd_emb = model.encode([jd_text])[0]
 
- # ✅ Use local model
+    score = cosine_similarity([resume_emb], [jd_emb])[0][0] * 100
+    return round(score, 2)
 
+from sklearn.metrics.pairwise import cosine_similarity
 
-
-def get_match_score(resume_text, job_description_text):
-    try:
-        # Encode both texts using BERT
-        embeddings = model.encode([resume_text, job_description_text], convert_to_tensor=True)
-
-        # Compute cosine similarity
-        cosine_sim = util.pytorch_cos_sim(embeddings[0], embeddings[1]).item()
-        match_percent = round(cosine_sim * 100, 2)
-
-        return match_percent
-    except Exception as e:
-        print(f"Error with BERT matching: {e}")
-        return 0.0
 
