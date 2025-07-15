@@ -1,56 +1,64 @@
-# app.py
-
 import streamlit as st
+from jd_matcher import get_match_score, extract_missing_skills
+from pdfminer.high_level import extract_text
+from pdf2image import convert_from_path
+import pytesseract
+import tempfile
 import os
-from resume_parser import extract_text_from_pdf
-from jd_matcher import get_match_score
-from skill_matcher import find_missing_skills
 
 st.set_page_config(page_title="AI Resume Screener", layout="centered")
 
-st.title("📄 AI Resume Screener + Job Match")
-st.write("Upload your **Resume (PDF)** and paste a **Job Description** to see how well it matches.")
+st.title("📄 AI Resume Screener + Matcher")
+st.write("Upload your resume and paste a job description to see your match score and missing skills.")
 
-# Upload Resume
-resume_file = st.file_uploader("Upload Resume (PDF only)", type=["pdf"])
+uploaded_resume = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+jd_input = st.text_area("Paste Job Description Here")
 
-# Paste or type Job Description
-job_description = st.text_area("Paste the Job Description here", height=200)
+# ---- Resume Text Extractor (OCR + Normal) ----
+def extract_resume_text(uploaded_resume):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_resume.read())
+        tmp_path = tmp_file.name
 
-if resume_file and job_description:
-    with st.spinner("Processing..."):
-        # Save resume temporarily
-        with open("temp_resume.pdf", "wb") as f:
-            f.write(resume_file.read())
+    # Try regular text extraction
+    text = extract_text(tmp_path)
+    if text and len(text.strip()) > 100:
+        return text
 
-        # Extract text from resume
-        resume_text = extract_text_from_pdf("temp_resume.pdf")
+    # If not enough text, try OCR
+    try:
+        images = convert_from_path(tmp_path)
+        ocr_text = ""
+        for img in images:
+            ocr_text += pytesseract.image_to_string(img)
+        return ocr_text
+    except Exception as e:
+        return f"OCR_ERROR::{e}"
 
-        if resume_text:
-            # Get match score using BERT
-            match_score = get_match_score(resume_text, job_description)
-            st.success(f"✅ Match Score: **{match_score}%**")
+# ---- Process ----
+if st.button("🔍 Analyze"):
+    if uploaded_resume and jd_input.strip():
+        resume_text = extract_resume_text(uploaded_resume)
 
-            # Match feedback
-            if match_score >= 75:
-                st.info("🎯 Great match! Your resume fits this job well.")
-            elif match_score >= 50:
-                st.warning("🧐 Decent match. Consider adding missing keywords.")
-            else:
-                st.error("❌ Low match. Try tailoring your resume to the job description.")
+        if resume_text.startswith("OCR_ERROR::"):
+            st.error(f"❌ OCR failed: {resume_text.split('::')[1]}")
+            st.stop()
+        elif not resume_text.strip():
+            st.error("❌ Couldn't extract text. Resume might be empty or corrupted.")
+            st.stop()
 
-            # Show missing skills
-            missing = find_missing_skills(resume_text, job_description)
-            if missing:
-                st.warning("🔍 Missing Keywords from Resume:")
-                for skill in missing:
-                    st.markdown(f"- ❌ `{skill}`")
-            else:
-                st.success("✅ All important keywords seem to be present!")
+        score = get_match_score(resume_text, jd_input)
+        missing_skills = extract_missing_skills(resume_text, jd_input)
 
-            # View raw resume text (optional)
-            with st.expander("📄 View Extracted Resume Text"):
-                st.write(resume_text)
+        st.success(f"✅ Match Score: {score}%")
+        if score < 70:
+            st.warning("⚠️ You may want to improve your resume for a better fit.")
+
+        if missing_skills:
+            st.subheader("🚫 Missing Keywords")
+            st.write(", ".join(missing_skills))
         else:
-            st.error("Failed to extract text from the resume.")
+            st.write("✅ Great! No major keywords missing.")
+    else:
+        st.warning("Please upload a resume and paste a job description.")
 
